@@ -60,60 +60,76 @@ class PyQT_Demo(QMainWindow):
         self.threads = {}
         self.workers = {}
         
+        # create a threadpool to help manage and limit the number of spawned
+        # threads to a manageable number
+        self.threadpool = QThreadPool()
+        self.threadpool.setMaxThreadCount(8)
+        
+    
+    
     # method triggered by Button_1 press
     @pyqtSlot()
     def B1_launch(self):
         # add text to the window indicating signal was received
         self.TextBox.append('...^^^...')
-        # create a QThread object
-        self.threads[self.counter] = QThread()
-        # create a Worker
-        self.workers[self.counter] = Worker(self.path_to_script,self.counter,self.q)
-        # move worker to thread
-        self.workers[self.counter].moveToThread(self.threads[self.counter])
-        # connect signals and slots
-        self.threads[self.counter].started.connect(self.workers[self.counter].run_external)
-        self.workers[self.counter].finished.connect(self.threads[self.counter].quit)
-        self.workers[self.counter].finished.connect(self.workers[self.counter].deleteLater)
-        self.threads[self.counter].finished.connect(self.threads[self.counter].deleteLater)
-        self.workers[self.counter].progress.connect(self.B_run)
-        self.workers[self.counter].finished.connect(self.B_Done)
-        # start the thread
-        self.threads[self.counter].start()
-        # advance the counter - used to test launching multiple threads
-        self.counter+=1
+        # loop to simulate large amount of threads needed
+        for i in range(10):
+            # create a Worker and pass it's 'run' method as the first argument
+            self.workers[self.counter] = Worker(
+                self.path_to_script,
+                self.counter,
+                self.q,
+                self,
+                'external'
+                )
+            self.workers[self.counter].signals.progress.connect(self.B_run)
+            self.workers[self.counter].signals.finished.connect(self.B_Done)
+            # Add the 'QRunnable' worker to the threadpool which will manage how
+            # many are started at a time
+            self.threadpool.start(self.workers[self.counter])
+            
+            self.counter+=1
     
     # method triggered by Button _2 press
     @pyqtSlot()
     def B2_launch(self):
         # add text to the window indicating signal was received
-        self.TextBox.append('...###...')
-        # create a QThread object
-        self.threads[self.counter] = QThread()
-        # create a Worker
-        self.workers[self.counter] = Worker(self.path_to_script,self.counter,self.q)
-        # move worker to thread
-        self.workers[self.counter].moveToThread(self.threads[self.counter])
-        # connect signals and slots
-        self.threads[self.counter].started.connect(self.workers[self.counter].run_internal)
-        self.workers[self.counter].finished.connect(self.threads[self.counter].quit)
-        self.workers[self.counter].finished.connect(self.workers[self.counter].deleteLater)
-        self.threads[self.counter].finished.connect(self.threads[self.counter].deleteLater)
-        self.workers[self.counter].progress.connect(self.B_run)
-        self.workers[self.counter].finished.connect(self.B_Done)
-        # start the thread
-        self.threads[self.counter].start()
-        # advance the counter - used to test launching multiple threads
-        self.counter+=1
-        
+        self.TextBox.append('...^^^...')
+        # loop to simulate large amount of threads needed
+        for i in range(5):
+            # create a Worker and pass it's 'run' method as the first argument
+            self.workers[self.counter] = Worker(
+                self.path_to_script,
+                self.counter,
+                self.q,
+                self,
+                'internal'
+                )
+            self.workers[self.counter].signals.progress.connect(self.B_run)
+            self.workers[self.counter].signals.finished.connect(self.B_Done)
+            # Add the 'QRunnable' worker to the threadpool which will manage how
+            # many are started at a time
+            self.threadpool.start(self.workers[self.counter])
+            
+            self.counter+=1
     
     
     # method with slot decorator to receive signals from the worker running in
     # a seperate thread...B_run is triggered by the worker's 'progress' signal
+    
     @pyqtSlot(int)
     def B_run(self,worker_id):
-        while not self.q.empty():
+        if not self.q.empty():
             self.TextBox.append(f'{worker_id} : {self.q.get_nowait()}')
+            """
+            note that if multiple workers are emitting their signals it is not
+            clear which one will trigger the B_run method, though there should 
+            be one trigger of the B_run method for each emission. It appears as
+            though the emissions collect in a queue as well.
+            If we care about matching the worker-id to the emission/queue 
+            contents, I recommend loading the queue with tuples that include
+            the worker id and the text contents
+            """
     
     # method with slot decorator to receive signals from the worker running in
     # a seperate thread...B_Done is triggered by the worker's 'finished' signal
@@ -122,60 +138,71 @@ class PyQT_Demo(QMainWindow):
         self.TextBox.append('Worker_{} finished'.format(worker_id))
             
     
+class WorkerSignals(QObject):
+    # create the signals that the Worker can submit
+    started = pyqtSignal(int)
+    finished = pyqtSignal(int)
+    progress = pyqtSignal(int)
     
         
 
 
-class Worker(QObject):
-    # create the signals that the Worker can submit
-    finished = pyqtSignal(int)
-    progress = pyqtSignal(int)
+class Worker(QRunnable):
     
-    def __init__(self,path_to_script,i,worker_queue):
+    def __init__(self,
+                 path_to_script,
+                 i,
+                 worker_queue,
+                 PyQT_Demo,
+                 internal_or_external
+                 ):
         super(Worker, self).__init__()
         self.path_to_script = path_to_script
         self.i = i
         self.worker_queue = worker_queue
         self.PyQT_Demo = PyQT_Demo
+        self.internal_or_external = internal_or_external
     
-    # method to demonstrate threading while running code from the same program
-    # threading is launched by the B2_Launch Method 
-    def run_internal(self):
-        for j in range(10):
-            time.sleep(0.5)
-            self.worker_queue.put(
-                f'Internal Threading Test-worker-{self.i} : {j}'
+        #import signals for later use
+        self.signals = WorkerSignals()
+        
+    
+    # threading is launched by the QThreadpool calling the run method
+    def run(self):
+        # demonstration of internal code running on a thread
+        if self.internal_or_external == 'internal':
+            for j in range(10):
+                time.sleep(0.5)
+                self.worker_queue.put(
+                    f'Internal Threading Test-worker-{self.i} : {j}'
+                    )
+                self.signals.progress.emit(self.i)
+            self.signals.finished.emit(self.i)
+
+        else:
+            #demonstration of external code running on a thread
+            # use subprocess.Popen to run a seperate program in a new process
+            # stdout will be captured by the variable self.echo and extracted below
+            self.echo = subprocess.Popen(
+                f'python -u "{self.path_to_script}" -i "External Threading Test-WORKER-{self.i}"',
+                stdout= subprocess.PIPE, 
+                stderr = subprocess.STDOUT
                 )
-            self.progress.emit(self.i)
-        self.finished.emit(self.i)
-    
-    # method to demonstrate threading while running code through 
-    # subprocess.popen
-    # threading is launched by the B1_Launch Method
-    def run_external(self):
-        # use subprocess.Popen to run a seperate program in a new process
-        # stdout will be captured by the variable self.echo and extracted below
-        self.echo = subprocess.Popen(
-            f'python -u "{self.path_to_script}" -i "External Threading Test-WORKER-{self.i}"',
-            stdout= subprocess.PIPE, 
-            stderr = subprocess.STDOUT
-            )
-    
-        # extract the stdout and feed it to the queue
-        # emit signals whenever adding to the queue or finishing
-        running = 1
-        while running == 1:
-            line = self.echo.stdout.readline().decode('utf8')
-            if self.echo.poll() is not None:
-                running = 0
-            elif line != '':
-                self.worker_queue.put(line.strip())
-                self.progress.emit(self.i)
-        self.finished.emit(self.i)
+        
+            # extract the stdout and feed it to the queue
+            # emit signals whenever adding to the queue or finishing
+            running = 1
+            while running == 1:
+                line = self.echo.stdout.readline().decode('utf8')
+                if self.echo.poll() is not None:
+                    running = 0
+                elif line != '':
+                    self.worker_queue.put(line.strip())
+                    self.signals.progress.emit(self.i)
+            self.signals.finished.emit(self.i)
 
 
 #%% define main
-
 
 def main():
     app = QApplication(sys.argv)
