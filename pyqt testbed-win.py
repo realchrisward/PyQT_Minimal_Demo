@@ -34,7 +34,7 @@ class PyQT_Demo(QMainWindow):
         
         self.rel_path_to_script = "../echo tester/echo tester.exe"
         
-        self.win_path = os.environ['WinDir'] + "\\System32\\"
+        self.win_path = "C:\\Windows\\System32\\cmd.exe"
         self.path_to_script = os.path.join(self.win_path, 'cmd.exe')
         self.path_to_script = [self.win_path,self.rel_path_to_script]
         
