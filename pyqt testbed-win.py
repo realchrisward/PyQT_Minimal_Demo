@@ -32,7 +32,7 @@ class PyQT_Demo(QMainWindow):
         # file selection window to get 'echo tester' script used with the demo
         # omitted for packaging demo self.path_to_script = QFileDialog.getOpenFileName()[0]
         
-        self.rel_path_to_script = '"../echo tester/echo tester.exe"'
+        self.rel_path_to_script = '"../../echo tester.exe"'
         
         self.win_path = "python"
         
