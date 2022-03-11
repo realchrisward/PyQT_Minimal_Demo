@@ -59,7 +59,7 @@
  [],
  False,
  False,
- 1646964487,
+ 1646965992,
  [('run.exe',
    'C:\\CONDA\\envs\\py38\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit\\run.exe',
    'EXECUTABLE')])
