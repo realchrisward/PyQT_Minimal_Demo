@@ -32,7 +32,7 @@ class PyQT_Demo(QMainWindow):
         # file selection window to get 'echo tester' script used with the demo
         # omitted for packaging demo self.path_to_script = QFileDialog.getOpenFileName()[0]
         
-        self.rel_path_to_script = "../echo tester/echo tester.exe"
+        self.rel_path_to_script = '"../echo tester/echo tester.exe"'
         
         self.win_path = "C:\\Windows\\System32\\cmd.exe"
         self.path_to_script = os.path.join(self.win_path, 'cmd.exe')
@@ -191,6 +191,7 @@ class Worker(QRunnable):
             #demonstration of external code running on a thread
             # use subprocess.Popen to run a seperate program in a new process
             # stdout will be captured by the variable self.echo and extracted below
+            print(self.path_to_script+["-i","External Threading Test-WORKER-{self.i}"])
             self.echo = subprocess.Popen(self.path_to_script+["-i","External Threading Test-WORKER-{self.i}"],
                 stdout= subprocess.PIPE, 
                 stderr = subprocess.STDOUT,
