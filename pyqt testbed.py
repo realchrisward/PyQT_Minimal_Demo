@@ -74,7 +74,7 @@ class PyQT_Demo(QMainWindow):
         self.TextBox.append('...^^^...')
         # loop to simulate large amount of threads needed
         for i in range(10):
-            # create a Worker and pass it's 'run' method as the first argument
+            # create a Worker
             self.workers[self.counter] = Worker(
                 self.path_to_script,
                 self.counter,
