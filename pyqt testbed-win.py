@@ -29,7 +29,9 @@ class PyQT_Demo(QMainWindow):
         super(PyQT_Demo, self).__init__()
         
         # file selection window to get 'echo tester' script used with the demo
-        self.path_to_script = QFileDialog.getOpenFileName()[0]
+        # omitted for packaging demo self.path_to_script = QFileDialog.getOpenFileName()[0]
+        
+        self.path_to_script = "../echo tester/echo tester.exe"
         
         # set basic attributes
         self.setWindowTitle("PyQT_Demo Analysis Pipeline")
